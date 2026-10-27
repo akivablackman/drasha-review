@@ -47,9 +47,14 @@ async function authFetch(path, opts = {}) {
 }
 
 async function signIn(password) {
+  // A test login (SESSIONS -> The Phase 8 build run) sets its own email in
+  // localStorage before signing in, on localhost only; the deployed page
+  // signs in as the one review user whatever the browser holds.
+  const local = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
+  const email = (local && recall("email")) || REVIEW_EMAIL;
   const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: "POST", headers: { apikey: PUBLISHABLE_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ email: REVIEW_EMAIL, password }),
+    body: JSON.stringify({ email, password }),
   });
   if (!r.ok) throw new Error(r.status === 400 ? "That password is not right." : `Sign-in failed (${r.status}).`);
   const data = await r.json();
@@ -116,8 +121,12 @@ function when(iso) { const d = new Date(iso); return d.toLocaleDateString(undefi
 let stopAt = null;
 function play(s, e) {
   stopAt = e;
-  const go = () => { audio.currentTime = s; audio.play(); $("#now").textContent = `${clock(s)}–${clock(e)}`; };
-  if (audio.readyState >= 1) go(); else audio.addEventListener("loadedmetadata", go, { once: true });
+  $("#now").textContent = `${clock(s)}–${clock(e)}`;
+  if (audio.readyState >= 1) { audio.currentTime = s; audio.play().catch(e => status(e.message, 5000)); return; }
+  // Chrome defers a media load in a tab that is not visible until play() is
+  // called; seek once the metadata is there.
+  audio.addEventListener("loadedmetadata", () => { audio.currentTime = s; }, { once: true });
+  audio.play().catch(() => {});
 }
 audio.addEventListener("timeupdate", () => { if (stopAt !== null && audio.currentTime >= stopAt) { audio.pause(); stopAt = null; } });
 
@@ -202,7 +211,7 @@ async function viewChapter(slug, version) {
         `${q.alternatives.length ? `. Also possible: ${esc(q.alternatives.join("; "))}` : ""}.</p>`)).join("")}</ul>`
     : "<p class=\"muted\">None this chapter.</p>";
   const decisions = data.decisions.length
-    ? `<ul class="items">${data.decisions.map(d => item("decisions", d, `<p class="q"><b>${esc(d.title)}.</b> ${esc(d.question)}</p>`)).join("")}</ul>`
+    ? `<ul class="items">${data.decisions.map(d => item("decisions", d, `<p class="q"><b>${esc(d.title)}.</b> ${inline(d.question)}</p>`)).join("")}</ul>`
     : "<p class=\"muted\">None this chapter.</p>";
   const facts = data.facts.length
     ? `<ul class="items">${data.facts.map(f => item("facts", f, `<p class="q"><b>${esc(f.term)}</b>: ${esc(f.question)}</p>`)).join("")}</ul>`
@@ -411,7 +420,13 @@ function renderApprovals() {
     (chapter.approvals.some(a => a.author === author) ? "" : `<button class="primary" type="button" id="approve">Approve as ${esc(author)}</button>`);
   const b = $("#approve");
   if (b) b.addEventListener("click", async () => {
-    if (!window.confirm(`Approve "${chapter.data.title}" as ${author}? This freezes the chapter.`)) return;
+    // Two presses, in the page: the first arms it, the second approves.
+    if (b.dataset.armed !== "yes") {
+      b.dataset.armed = "yes";
+      b.textContent = `Yes, approve "${chapter.data.title}" as ${author}`;
+      setTimeout(() => { if (b.isConnected) { b.dataset.armed = ""; b.textContent = `Approve as ${author}`; } }, 8000);
+      return;
+    }
     b.disabled = true;
     try {
       const row = await insert("approvals", { chapter_id: chapter.row.id, author });

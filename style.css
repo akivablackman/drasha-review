@@ -47,8 +47,8 @@ ul.chapters a { font-size: 1.1rem; }
 /* paragraphs */
 .blocks { position: relative; }
 p.block { margin: 0 0 1rem; position: relative; }
-p.block > .play { font-size: .75rem; margin-right: .45rem; border: 1px solid var(--rule); background: #fff; border-radius: 3px; padding: 0 .35rem; color: var(--accent); vertical-align: middle; }
-p.block > .play small { color: var(--muted); margin-left: .25rem; font-size: .8em; }
+.play { font-size: .75rem; margin-right: .45rem; border: 1px solid var(--rule); background: #fff; border-radius: 3px; padding: 0 .35rem; color: var(--accent); vertical-align: middle; }
+.play small { color: var(--muted); margin-left: .25rem; font-size: .8em; }
 p.block.commented > .t { background: linear-gradient(transparent 85%, rgba(122, 74, 30, .15) 85%); }
 .book p.block { text-align: justify; hyphens: auto; }
 .epigraph { text-align: right; direction: rtl; font-size: 1.15rem; margin: 1rem 0 .2rem; }
