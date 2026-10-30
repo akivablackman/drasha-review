@@ -239,18 +239,19 @@ async function viewChapter(slug, version) {
   main.replaceChildren(h(`
     <div>
       <h1>${esc(data.title)}</h1>
-      <p class="muted">Signed in as ${esc(author)} · <a href="#" id="switch">not you?</a> · version ${esc(data.version)}</p>
+      <p class="muted">Signed in as ${esc(author)} · <a href="#" id="switch">not you?</a> · published ${esc(when(row.published_at))}</p>
 
       <div class="overview text">
         <h2>How to read this page</h2>
-        <p>This is one chapter of the book made from Dad's recorded shiurim on the parsha, as far as it has got. It comes to you one chapter at a time. Everything you write here is saved and comes back to Akiva with your name on it. Nothing is final until one of you presses Approve at the bottom.</p>
+        <p>This is one chapter of the book made from Dad's recorded shiurim on the parsha. It comes to you one chapter at a time. Everything you write here is saved and comes back to Akiva with your name on it. Nothing is final until one of you presses Approve at the bottom.</p>
+        <p>The big picture: the first few chapters will have more mistakes and go round more times. Each thing you catch becomes a rule, so later chapters need less and less from you, until the whole book can be made the same way. You do not need to check every paragraph of the transcript against the recording: pick a few that seem off, or where something does not make sense, and listen to those.</p>
         <p>What is on the page, in order:</p>
         <ol>
           <li><b>The transcript.</b> The recording written down, paragraph by paragraph. Read it for one thing: was anything misheard or dropped?</li>
-          <li><b>Questions about the book.</b> Five decisions that apply to every chapter, not just this one: how close to the recording, how the Hebrew is handled, names, sources, length. Read them before the chapter so you have them in mind as you read.</li>
+          <li><b>Questions about the book.</b> Five decisions that apply to every chapter, not just this one: his voice, how the Hebrew is handled, names, sources, length. Read them before the chapter so you have them in mind as you read.</li>
           <li><b>The chapter.</b> The transcript condensed and set as it would go to print. Read it as a book, with three questions: is anything wrong; is anything not him; is anything missing or unwanted?</li>
           <li><b>Citations to check.</b> Sources that could not be confirmed automatically, for Dad.</li>
-          <li><b>Facts for Dad.</b> Dates in the glossary that a reference disagrees with or cannot confirm.</li>
+          <li><b>Facts for Dad.</b> Dates for the glossary at the back of the book that could not be confirmed.</li>
           <li><b>Approve.</b> When the chapter is right.</li>
         </ol>
         <p>How it works: press <b>▶</b> on any paragraph to hear it from the recording. To comment, <b>select some words</b> with the mouse and press <b>Comment</b>; the comment appears in the margin beside the paragraph, and you can edit or delete your own. The questions have a <b>dropdown</b> and a note; press <b>Save</b> after each. Spelling and punctuation are not yours to fix: say what is wrong and it is fixed everywhere.</p>
@@ -261,11 +262,11 @@ async function viewChapter(slug, version) {
       <div class="blocks" data-section="transcript"><div class="text">${data.transcript.map(b => para(b, "transcript")).join("")}</div><div class="aside"></div></div>
 
       <h2>2. Before the chapter: questions about the book</h2>
-      <p class="instructions text">These five decisions apply to the whole book, and the chapter below was made under them. Read them now, keep them in mind as you read the chapter, and answer when you are ready: one choice each, a note if you want. "Fine as it is" is an answer.</p>
+      <p class="instructions text">These five decisions apply to the whole book, and the chapter below was made under them. Read them now, keep them in mind as you read the chapter, and answer when you are ready: one choice each, a note if you want.</p>
       ${decisions}
 
       <h2>3. The chapter <small>about ${data.pages_estimate} printed page${data.pages_estimate === 1 ? "" : "s"}, an estimate</small></h2>
-      <p class="instructions text">The transcript condensed, with the Hebrew terms explained on first use and the sources in footnotes. Read it as a book. Three questions, for any line: <b>is anything wrong</b>; <b>is anything not him</b>; <b>is anything missing or unwanted</b>? Select the words and comment. Press ▶ to hear the passage a paragraph came from.</p>
+      <p class="instructions text">The chapter as it would be published: the transcript condensed and set as a book, with the Hebrew terms explained on first use and the sources in footnotes. Read it as a book. Three questions, for any line: <b>is anything wrong</b>; <b>is anything not him</b>; <b>is anything missing or unwanted</b>? Select the words and comment. Press ▶ to hear the passage a paragraph came from.</p>
       <div class="blocks book" data-section="chapter"><div class="text">${epi}${data.chapter.map(b => para(b, "chapter")).join("")}${footnotes}</div><div class="aside"></div></div>
 
       <h2>4. Citations to check</h2>
@@ -273,7 +274,7 @@ async function viewChapter(slug, version) {
       ${citations}
 
       <h2>5. Facts for Dad</h2>
-      <p class="instructions text">Dates in the glossary that a reference disagrees with or cannot confirm. The answer goes into the glossary for the whole book.</p>
+      <p class="instructions text">The book ends with a glossary: every name and Hebrew term used, each with a line of explanation and, for a person, their dates. These are the dates we could not confirm, or that the reference we checked against disagrees with. Your answer goes into the glossary for the whole book.</p>
       ${facts}
 
       <h2>6. Approve</h2>
