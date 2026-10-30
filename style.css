@@ -67,6 +67,16 @@ ul.cuts .why { color: var(--muted); font-size: .85rem; }
 .ccard .by { color: var(--muted); font-size: .78rem; }
 .ccard .q { color: var(--muted); font-style: italic; border-left: 2px solid var(--rule); padding-left: .4rem; margin: .2rem 0; }
 .ccard .body { white-space: pre-wrap; }
+.ccard .tools { font-size: .75rem; color: var(--muted); margin-top: .3rem; }
+.ccard .tools a { color: var(--muted); }
+.ccard textarea { min-height: 3rem; font-size: .85rem; }
+.ccard .row { display: flex; gap: .4rem; justify-content: flex-end; margin-top: .3rem; }
+.ccard .row button { font-size: .8rem; padding: .2rem .5rem; border-radius: 4px; border: 1px solid var(--rule); background: #fff; }
+.ccard .row button.save { background: var(--accent); color: #fff; border-color: var(--accent); }
+.overview { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: .2rem 1.2rem 1rem; margin: 1rem 0 2rem; }
+.overview h2 { border: 0; margin-top: .8rem; padding-top: 0; }
+.overview ol { padding-left: 1.3rem; }
+.overview li { margin: .3rem 0; }
 #cbtn { position: absolute; z-index: 6; background: var(--accent); color: #fff; border: 0; border-radius: 4px; padding: .25rem .6rem; font-size: .85rem; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
 #cbox { position: absolute; z-index: 6; width: 18rem; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: .6rem; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
 #cbox .q { font-size: .8rem; color: var(--muted); font-style: italic; margin-bottom: .3rem; }

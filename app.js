@@ -93,6 +93,17 @@ async function insert(table, row) {
   return (await r.json())[0];
 }
 
+async function patch(table, id, fields) {
+  const r = await authFetch(`/rest/v1/${table}?id=eq.${id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json", Prefer: "return=representation" }, body: JSON.stringify(fields),
+  });
+  return (await r.json())[0];
+}
+
+async function remove(table, id) {
+  await authFetch(`/rest/v1/${table}?id=eq.${id}`, { method: "DELETE" });
+}
+
 async function readJson(path) {
   return (await authFetch(`/storage/v1/object/authenticated/${BUCKET}/${path}`)).json();
 }
@@ -180,10 +191,14 @@ async function viewChapter(slug, version) {
   const found = await rows("chapters", params);
   if (!found.length) { main.replaceChildren(h(`<p>No such chapter. <a href="#/">Back to the list</a>.</p>`)); return; }
   const row = found[0];
+  // Comments and answers stay attached by block and item id across versions
+  // of a chapter; an approval belongs to the version it was pressed on.
+  const versions = await rows("chapters", { select: "id", slug: `eq.${slug}` });
+  const ids = `in.(${versions.map(v => v.id).join(",")})`;
   const [data, comments, answers, approvals] = await Promise.all([
     readJson(row.path),
-    rows("comments", { select: "*", chapter_id: `eq.${row.id}`, order: "created_at.asc" }),
-    rows("answers", { select: "*", chapter_id: `eq.${row.id}`, order: "created_at.asc" }),
+    rows("comments", { select: "*", chapter_id: ids, order: "created_at.asc" }),
+    rows("answers", { select: "*", chapter_id: ids, order: "created_at.asc" }),
     rows("approvals", { select: "*", chapter_id: `eq.${row.id}`, order: "created_at.asc" }),
   ]);
   chapter = { row, data, comments, answers, approvals };
@@ -194,8 +209,12 @@ async function viewChapter(slug, version) {
   const para = (b, section) => `<p class="block" id="${section}-${esc(b.id)}" data-section="${section}" data-block="${esc(b.id)}" data-start="${b.start}" data-end="${b.end}">` +
     `<button class="play" type="button" title="play from here">▶<small>${clock(b.start)}</small></button><span class="t">${section === "chapter" ? inline(b.text) : esc(b.text)}</span></p>`;
   const epi = data.epigraph ? `<p class="epigraph">${esc(data.epigraph.hebrew)}</p><p class="epigraph-ref">— ${esc(data.epigraph.ref)}</p>` : "";
-  const footnotes = data.footnotes.length ? `<ol class="footnotes">${data.footnotes.map(f => `<li id="fn${f.n}">${inline(f.text)}${f.url ? ` <a href="${esc(f.url)}" target="_blank" rel="noopener">Sefaria</a>` : ""}</li>`).join("")}</ol>` : "";
-  const cuts = data.cuts.length ? `<ul class="cuts">${data.cuts.map(c => `<li><button class="play" type="button" data-start="${c.start}" data-end="${c.end}" title="play">▶<small>${clock(c.start)}</small></button> ${esc(c.text)} <span class="why">— ${esc(c.reason)}</span></li>`).join("")}</ul>` : "<p class=\"muted\">Nothing was left out.</p>";
+  const footnotes = data.footnotes.length
+    ? `<h3>Sources</h3><ol class="footnotes">${data.footnotes.map(f => `<li id="fn${f.n}">${inline(f.text)}${f.url ? ` <a href="${esc(f.url)}" target="_blank" rel="noopener">see it on Sefaria</a>` : ""}</li>`).join("")}</ol>` +
+      `<p class="instructions text">The source printed in the book is the reference itself (the verse, the machzor, the Gemara). ` +
+      `Sefaria is only where the wording was checked; the link is there so you can see the text it was checked against. ` +
+      `Sefaria is not named in the book.</p>`
+    : "";
 
   const item = (section, it, body) => `<li class="item" data-section="${section}" data-item="${esc(it.id)}">${body}
       <div class="controls">
@@ -222,40 +241,49 @@ async function viewChapter(slug, version) {
       <h1>${esc(data.title)}</h1>
       <p class="muted">Signed in as ${esc(author)} · <a href="#" id="switch">not you?</a> · version ${esc(data.version)}</p>
 
+      <div class="overview text">
+        <h2>How to read this page</h2>
+        <p>This is one chapter of the book made from Dad's recorded shiurim on the parsha, as far as it has got. It comes to you one chapter at a time. Everything you write here is saved and comes back to Akiva with your name on it. Nothing is final until one of you presses Approve at the bottom.</p>
+        <p>What is on the page, in order:</p>
+        <ol>
+          <li><b>The transcript.</b> The recording written down, paragraph by paragraph. Read it for one thing: was anything misheard or dropped?</li>
+          <li><b>Questions about the book.</b> Five decisions that apply to every chapter, not just this one: how close to the recording, how the Hebrew is handled, names, sources, length. Read them before the chapter so you have them in mind as you read.</li>
+          <li><b>The chapter.</b> The transcript condensed and set as it would go to print. Read it as a book, with three questions: is anything wrong; is anything not him; is anything missing or unwanted?</li>
+          <li><b>Citations to check.</b> Sources that could not be confirmed automatically, for Dad.</li>
+          <li><b>Facts for Dad.</b> Dates in the glossary that a reference disagrees with or cannot confirm.</li>
+          <li><b>Approve.</b> When the chapter is right.</li>
+        </ol>
+        <p>How it works: press <b>▶</b> on any paragraph to hear it from the recording. To comment, <b>select some words</b> with the mouse and press <b>Comment</b>; the comment appears in the margin beside the paragraph, and you can edit or delete your own. The questions have a <b>dropdown</b> and a note; press <b>Save</b> after each. Spelling and punctuation are not yours to fix: say what is wrong and it is fixed everywhere.</p>
+      </div>
+
       <h2>1. The transcript</h2>
-      <p class="instructions text">${esc(data.instructions.transcript)}</p>
+      <p class="instructions text">The recording written down, with the ums and restarts removed and nothing else changed. Press ▶ to hear any paragraph. Read it for one thing only: <b>was anything misheard or dropped?</b> Select the words and comment. Do not judge the writing here; that is the chapter's job.</p>
       <div class="blocks" data-section="transcript"><div class="text">${data.transcript.map(b => para(b, "transcript")).join("")}</div><div class="aside"></div></div>
 
-      <h2>2. The chapter <small>about ${data.pages_estimate} printed page${data.pages_estimate === 1 ? "" : "s"}, an estimate</small></h2>
-      <p class="instructions text">${esc(data.instructions.chapter)}</p>
-      <div class="blocks book" data-section="chapter"><div class="text">${epi}${data.chapter.map(b => para(b, "chapter")).join("")}${footnotes}</div><div class="aside"></div></div>
-
-      <h3>Left out of the chapter</h3>
-      <div class="text">${cuts}</div>
-
-      <h2>Citations to check</h2>
-      <p class="instructions text">Sefaria could not settle these. The ▶ plays the paragraph; the candidate is the pipeline's best guess, not a confirmed source.</p>
-      ${citations}
-
-      <h2>Decisions for the book</h2>
-      <p class="instructions text">These apply to every chapter. One answer each is enough.</p>
+      <h2>2. Before the chapter: questions about the book</h2>
+      <p class="instructions text">These five decisions apply to the whole book, and the chapter below was made under them. Read them now, keep them in mind as you read the chapter, and answer when you are ready: one choice each, a note if you want. "Fine as it is" is an answer.</p>
       ${decisions}
 
-      <h2>Facts for Dad</h2>
-      <p class="instructions text">Dates in the glossary that Sefaria contradicts or cannot check. The answer goes into the glossary for the whole book.</p>
+      <h2>3. The chapter <small>about ${data.pages_estimate} printed page${data.pages_estimate === 1 ? "" : "s"}, an estimate</small></h2>
+      <p class="instructions text">The transcript condensed, with the Hebrew terms explained on first use and the sources in footnotes. Read it as a book. Three questions, for any line: <b>is anything wrong</b>; <b>is anything not him</b>; <b>is anything missing or unwanted</b>? Select the words and comment. Press ▶ to hear the passage a paragraph came from.</p>
+      <div class="blocks book" data-section="chapter"><div class="text">${epi}${data.chapter.map(b => para(b, "chapter")).join("")}${footnotes}</div><div class="aside"></div></div>
+
+      <h2>4. Citations to check</h2>
+      <p class="instructions text">Sources that could not be confirmed automatically. The ▶ plays the passage; the candidate is the best guess, not a confirmed source. Is the candidate the right reference?</p>
+      ${citations}
+
+      <h2>5. Facts for Dad</h2>
+      <p class="instructions text">Dates in the glossary that a reference disagrees with or cannot confirm. The answer goes into the glossary for the whole book.</p>
       ${facts}
 
-      <h2>Notes from the checks</h2>
-      ${data.notes ? `<div class="notes">${esc(data.notes)}</div>` : "<p class=\"muted\">None.</p>"}
-
-      <h2>Approve</h2>
-      <p class="instructions text">Pressing Approve closes the chapter: its text is frozen and later rules reach it only as a note. Either of you can press it.</p>
+      <h2>6. Approve</h2>
+      <p class="instructions text">Pressing Approve closes the chapter: its text is frozen, and a later change of rule reaches it only as a note for you to see. Either of you can press it. Press once to arm, once more to approve.</p>
       <div class="approve"></div>
     </div>`));
 
   $("#switch").addEventListener("click", ev => { ev.preventDefault(); author = null; remember("author", null); route(); });
   main.querySelectorAll("p.block > .play").forEach(b => b.addEventListener("click", () => { const p = b.parentElement; play(+p.dataset.start, +p.dataset.end); }));
-  main.querySelectorAll("ul.cuts .play, .item .play").forEach(b => b.addEventListener("click", () => play(+b.dataset.start, +b.dataset.end)));
+  main.querySelectorAll(".item .play").forEach(b => b.addEventListener("click", () => play(+b.dataset.start, +b.dataset.end)));
   renderComments();
   renderAnswers();
   renderApprovals();
@@ -308,8 +336,12 @@ function renderComments() {
     if (!p) continue;
     p.classList.add("commented");
     const aside = p.closest(".blocks").querySelector(".aside");
-    const card = h(`<div class="ccard" data-id="${c.id}"><div class="by">${esc(c.author)} · ${esc(when(c.created_at))}</div>${c.quoted ? `<div class="q">${esc(c.quoted)}</div>` : ""}<div class="body">${esc(c.body)}</div></div>`);
+    const mine = c.author === author;
+    const card = h(`<div class="ccard" data-id="${c.id}"><div class="by">${esc(c.author)} · ${esc(when(c.created_at))}${c.edited_at ? " · edited" : ""}</div>` +
+      `${c.quoted ? `<div class="q">${esc(c.quoted)}</div>` : ""}<div class="body">${esc(c.body)}</div>` +
+      `${mine ? `<div class="tools"><a href="#" class="edit">edit</a> · <a href="#" class="del">delete</a></div>` : ""}</div>`);
     aside.appendChild(card);
+    if (mine) armCardTools(card, c);
     const key = aside.parentElement.dataset.section;
     const top = Math.max(p.offsetTop, nextTop[key] || 0);
     card.style.top = `${top}px`;
@@ -322,6 +354,47 @@ function renderComments() {
   if (window.Highlight && CSS.highlights) {
     CSS.highlights.set("commented", new Highlight(...ranges));
   }
+}
+
+function armCardTools(card, c) {
+  // Edit in place; delete takes two presses, in the page.
+  card.querySelector(".edit").addEventListener("click", async ev => {
+    ev.preventDefault();
+    if (card.querySelector("textarea")) return;
+    const body = card.querySelector(".body");
+    const box = h(`<div><textarea></textarea><div class="row"><button type="button" class="cancel">Cancel</button><button type="button" class="save">Save</button></div></div>`);
+    box.querySelector("textarea").value = c.body;
+    body.replaceWith(box);
+    box.querySelector("textarea").focus();
+    box.querySelector(".cancel").addEventListener("click", renderComments);
+    box.querySelector(".save").addEventListener("click", async () => {
+      const text = box.querySelector("textarea").value.trim();
+      if (!text) return;
+      box.querySelector(".save").disabled = true;
+      try {
+        const row = await patch("comments", c.id, { body: text, edited_at: new Date().toISOString() });
+        Object.assign(c, row);
+        renderComments();
+        status("Comment saved.");
+      } catch (e) { status(e.message, 6000); box.querySelector(".save").disabled = false; }
+    });
+  });
+  const del = card.querySelector(".del");
+  del.addEventListener("click", async ev => {
+    ev.preventDefault();
+    if (del.dataset.armed !== "yes") {
+      del.dataset.armed = "yes";
+      del.textContent = "really delete?";
+      setTimeout(() => { if (del.isConnected) { del.dataset.armed = ""; del.textContent = "delete"; } }, 6000);
+      return;
+    }
+    try {
+      await remove("comments", c.id);
+      chapter.comments = chapter.comments.filter(x => x.id !== c.id);
+      renderComments();
+      status("Comment deleted.");
+    } catch (e) { status(e.message, 6000); }
+  });
 }
 
 let pending = null;   // {section, block_id, start, end, quoted}
