@@ -274,7 +274,7 @@ async function viewChapter(slug, version) {
       ${citations}
 
       <h2>5. Facts for Dad</h2>
-      <p class="instructions text">The book ends with a glossary: every name and Hebrew term used, each with a line of explanation and, for a person, their dates. These are the dates we could not confirm, or that the reference we checked against disagrees with. Your answer goes into the glossary for the whole book.</p>
+      <p class="instructions text">The book ends with a glossary: every name and Hebrew term used, each with a line of explanation and, for a person, their dates. The entries were written by us from general knowledge, then checked against a reference. These are the ones the reference disagrees with or cannot confirm, so nobody has verified them yet. Your answer goes into the glossary for the whole book.</p>
       ${facts}
 
       <h2>6. Approve</h2>
